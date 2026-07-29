@@ -5,6 +5,7 @@ defmodule Retro.Boards do
   """
 
   import Ecto.Query, only: [from: 2]
+  import Retro.Boards.Card, only: [is_lane: 1]
 
   alias Retro.Boards.{Board, Card}
   alias Retro.Repo
@@ -80,6 +81,48 @@ defmodule Retro.Boards do
 
   # `attrs \\ %{}` declares a default argument; used by the Phase 2 form.
   def change_card(%Card{} = card, attrs \\ %{}), do: Card.changeset(card, attrs)
+
+  # Drag-and-drop drop handler. The client sends only its INTENT (target lane +
+  # index); the position arithmetic happens here, against the DB's current
+  # order — the same trust boundary as create_card computing position itself.
+  # Ecto.Changeset.change/2 (vs cast/3) applies trusted server-side values
+  # with no casting/validation — correct here because both values are ours,
+  # not user input. Concurrent drags of the same card are last-write-wins by
+  # design (documented in ADR-0001); the BoardServer serializes this in Phase 6.
+  def reposition_card(%Card{} = card, lane, new_index)
+      when is_lane(lane) and is_integer(new_index) and new_index >= 0 do
+    {prev, next} = neighbors_at(card, lane, new_index)
+
+    card
+    |> Ecto.Changeset.change(lane: lane, position: position_between(prev, next))
+    |> Repo.update()
+    |> broadcast_result(:card_updated)
+  end
+
+  # The dragged card's future neighbors: the target lane's cards WITHOUT the
+  # dragged one (SortableJS reports the index in exactly that list), so a
+  # same-lane move can't pick the card itself as its own neighbor.
+  defp neighbors_at(card, lane, new_index) do
+    rest =
+      Repo.all(
+        from c in Card,
+          where: c.board_id == ^card.board_id and c.lane == ^lane and c.id != ^card.id,
+          order_by: [asc: c.position, asc: c.id]
+      )
+
+    # Enum.at with a negative index counts from the END of the list — hence
+    # the explicit guard, or dropping at index 0 would grab the LAST card.
+    prev = if new_index > 0, do: Enum.at(rest, new_index - 1)
+    {prev, Enum.at(rest, new_index)}
+  end
+
+  # Fractional indexing — the payoff of position being a float: dropping
+  # between 2.0 and 3.0 yields 2.5, no renumbering of neighbours. Precision
+  # degrades after ~50 halvings of the same gap; accepted and documented.
+  defp position_between(nil, nil), do: 1.0
+  defp position_between(nil, next), do: next.position / 2
+  defp position_between(prev, nil), do: prev.position + 1.0
+  defp position_between(prev, next), do: (prev.position + next.position) / 2
 
   # Broadcast to EVERYONE, sender included: subscribers (the sender's own
   # LiveView too) apply changes only in handle_info — one code path, so the

@@ -73,6 +73,25 @@ defmodule RetroWeb.BoardLive do
     end
   end
 
+  # Drop reported by the CardSort hook (pushEvent, not a form). Everything in
+  # the payload is client-controlled, so each piece is re-validated: lane must
+  # parse into a known atom, the card must exist on THIS board (assigns, not a
+  # trusting Repo.get by id — a forged id targeting another board dies here).
+  # On :ok assigns stay untouched: the new order arrives via the broadcast,
+  # same single path as everyone else's.
+  def handle_event("reposition", %{"id" => id, "lane" => lane_param, "new_index" => new_index}, socket) do
+    lane = Enum.find(Card.lanes(), &(Atom.to_string(&1) == lane_param))
+    card = Enum.find(socket.assigns.cards, &(to_string(&1.id) == to_string(id)))
+
+    if lane && card && is_integer(new_index) && new_index >= 0 do
+      # A concurrently deleted card makes Repo.update raise StaleEntryError —
+      # crash-and-remount is acceptable for that race until Phase 6 serializes.
+      {:ok, _card} = Boards.reposition_card(card, lane, new_index)
+    end
+
+    {:noreply, socket}
+  end
+
   # Throttled phx-change from a compose box. Two jobs: tell the room someone
   # is typing, and mirror the draft into this lane's form assign — which is
   # exactly what makes LiveView's form recovery restore it after a reconnect.
@@ -161,12 +180,27 @@ defmodule RetroWeb.BoardLive do
         <section :for={lane <- Card.lanes()} class="bg-base-200 rounded-box p-3 space-y-3">
           <h2 class="font-semibold text-sm uppercase tracking-wide">{lane_title(lane)}</h2>
 
-          <div :for={card <- cards_in(@cards, lane)} id={"card-#{card.id}"} class="card bg-base-100 shadow-sm">
-            <div class="card-body p-3">
-              <p class="whitespace-pre-wrap text-sm">{card.body}</p>
-              <div class="text-xs opacity-60 flex justify-between">
-                <span>{card.author_name}</span>
-                <span>▲ {card.votes}</span>
+          <%!-- The hook element must hold ONLY cards: SortableJS treats every
+               child as draggable, and the reported index counts them all.
+               min-h keeps an empty lane a droppable target. --%>
+          <div
+            id={"cards-#{lane}"}
+            phx-hook="CardSort"
+            data-lane={lane}
+            class="space-y-3 min-h-8"
+          >
+            <div
+              :for={card <- cards_in(@cards, lane)}
+              id={"card-#{card.id}"}
+              data-id={card.id}
+              class="card bg-base-100 shadow-sm cursor-grab"
+            >
+              <div class="card-body p-3">
+                <p class="whitespace-pre-wrap text-sm">{card.body}</p>
+                <div class="text-xs opacity-60 flex justify-between">
+                  <span>{card.author_name}</span>
+                  <span>▲ {card.votes}</span>
+                </div>
               </div>
             </div>
           </div>

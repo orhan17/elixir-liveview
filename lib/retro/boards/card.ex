@@ -23,6 +23,13 @@ defmodule Retro.Boards.Card do
   # `do:` is the single-line form of a function body.
   def lanes, do: @lanes
 
+  # defguard defines a reusable guard expression (guards are a restricted
+  # compile-time language — no arbitrary function calls allowed, which is why
+  # `lane in Card.lanes()` cannot appear in a `when` clause, but `in @lanes`
+  # can: the attribute inlines at compile time). Callers `import` this and get
+  # the lane check right in the function head.
+  defguard is_lane(lane) when lane in @lanes
+
   # THE single definition of card ordering; the SQL order_by in
   # Retro.Boards.list_cards/1 is its mirror — change them only as a pair.
   # Lane compares as a string because that is exactly how Postgres orders the

@@ -64,3 +64,16 @@ written, why it was wrong, how it was caught, and the fix. Newest entries at the
 - **Why it is in this log:** logged at the developer's request as the counterpart to the
   error entries — a tracked unknown that was carried openly for two phases and then
   closed by code, instead of being papered over with a guess at the moment it was asked.
+
+## 2026-07-29 — Phase 5: new DOM id collided with an id the AI wrote two phases earlier
+
+- **What was written:** the drag-and-drop hook container got `id={"lane-#{lane}"}` — the
+  exact id the Phase 2 form already uses for its hidden lane input.
+- **Why it was wrong:** duplicate DOM ids break LiveView's patching contract; morphdom
+  targets nodes by id, so two `#lane-went_well` elements make patches land on the wrong
+  node nondeterministically.
+- **How it was caught:** LiveView 1.2's built-in duplicate-id detection failed all three
+  throwaway acceptance tests at mount, before the code ever reached a browser.
+- **Fix:** container renamed to `cards-#{lane}`. Same failure family as the Phase 3 slug
+  entry: the AI forgetting its own earlier decisions once they scroll out of context —
+  this time caught by tooling instead of by a failing changeset.

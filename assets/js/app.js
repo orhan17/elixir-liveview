@@ -24,12 +24,36 @@ import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/retro"
 import topbar from "../vendor/topbar"
+import Sortable from "../vendor/sortable.min.js"
+
+// One hook instance per lane container. The hook never mutates server state
+// itself: on drop it only reports the user's intent (card, target lane, index)
+// via pushEvent — the server recomputes positions and broadcasts, and the
+// patched DOM is the single source of truth for what the drag "did".
+const CardSort = {
+  mounted() {
+    this.sortable = new Sortable(this.el, {
+      group: "cards", // same group name => dragging between lanes is allowed
+      animation: 150,
+      onEnd: (evt) => {
+        this.pushEvent("reposition", {
+          id: evt.item.dataset.id,
+          lane: evt.to.dataset.lane,
+          new_index: evt.newIndex,
+        })
+      },
+    })
+  },
+  destroyed() {
+    this.sortable?.destroy()
+  },
+}
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks},
+  hooks: {...colocatedHooks, CardSort},
 })
 
 // Show progress bar on live navigation and form submits
