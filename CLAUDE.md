@@ -25,4 +25,4 @@ contract.
 - Postgres 17 (Homebrew service, role postgres/postgres)
 
 ## Status
-- Phases 0–6 done (schema, board UI, realtime cards, presence + typing, drag-and-drop, BoardServer/Registry/DynamicSupervisor as single writer + voting; write-through). Next: mini-step edit-own-card, then Phase 7 (write-behind; answer the UPDATE delta-vs-row question first).
+- Phases 0–7 + mini-step 6.5 done (…, edit-own-card, write-behind persistence: nextval ids, whole-row upsert flush every 5s, trap_exit + honest terminate/2, idle shutdown 10 min). Next: Phase 8 (tests — AI-authored per amendment §1a).
