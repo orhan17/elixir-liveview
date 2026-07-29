@@ -55,7 +55,29 @@ Run the test suite (48 tests):
 mix test
 ```
 
-## Architecture in one paragraph
+## Architecture
+
+```
+Browser tab ──ws──> LiveView process (one per tab)
+                          │
+                          │ calls / subscribes
+                          ▼
+                  BoardServer (GenServer, one per board)
+                    ├─ registered in Registry by slug
+                    ├─ started on demand by DynamicSupervisor
+                    ├─ holds authoritative board state in memory
+                    ├─ broadcasts changes via Phoenix.PubSub
+                    └─ write-behind flush to Postgres (interval + terminate)
+                          │
+                          ▼
+                       Ecto / Postgres  (persistence, hydration on boot)
+```
+
+Why it is shaped this way — including the alternatives that were rejected and
+the data-loss trade-off — is written up in two ADRs:
+
+- [ADR-0001 — a per-board GenServer is the source of truth, not Postgres](docs/adr/0001-board-server-as-source-of-truth.md)
+- [ADR-0002 — LiveView instead of an SPA](docs/adr/0002-liveview-instead-of-spa.md)
 
 Each live board is owned by one `Retro.BoardServer` GenServer — a **single
 writer**: every mutation goes through its mailbox, one message at a time, which
@@ -96,6 +118,46 @@ a cluster — noted, not implemented:
   its own Registry, and nothing bridges them. That is the single-node boundary
   made visible.
 
+## Where the AI got it wrong
+
+The full record is [LEARNING_LOG.md](LEARNING_LOG.md) — every stale API, wrong
+assumption and self-inflicted failure, logged as it happened. Five entries that
+show the failure modes best:
+
+1. **A flag that no longer exists (Phase 0).** The plan — and the AI's first
+   instinct — called for `mix phx.new retro --live`. Since Phoenix 1.6 LiveView
+   is the default and `phx_new 1.8.9` has no `--live` flag; the command would
+   have errored. Caught by reading `mix help phx.new` before running anything
+   (the project's rule 1: verify, don't remember). Fixed in `e7a997f`.
+
+2. **A reserved word as a field name (Phase 1).** The cards table shipped with
+   a `column` field — a SQL reserved word that also made "board column" vs
+   "table column" ambiguous in every later conversation. Caught reviewing the
+   applied migration before any code depended on it; rolled back and renamed
+   to `lane` inside `b616cb4`.
+
+3. **The AI collided with its own two-phase-old code (Phase 5).** The
+   drag-and-drop container got `id="lane-#{lane}"` — the exact DOM id the same
+   AI gave a hidden form input in Phase 2. LiveView 1.2's duplicate-id
+   detection failed all three acceptance tests at mount, before a browser ever
+   saw it. Fixed within `9c7218b`. Same failure family as forgetting its own
+   slug-length validation in Phase 3: earlier decisions scroll out of context.
+
+4. **Right conclusion, false cause (Phase 5 review — a developer error this
+   time).** Explaining why dragged DOM nodes survive patches, the developer
+   credited a `:key` attribute the template doesn't contain; the real
+   mechanism is morphdom keying on the `id` attribute (`getNodeKey`,
+   `dom_patch.ts`). Behavior could never catch this — the explanation matched
+   what the screen showed — only reading the framework source did. Logged in
+   `37eb22c`, provenance recorded in both directions.
+
+5. **Five test-suite mistakes in one `mix test` cycle (Phase 8).** Highlights:
+   passing the *database* representation (`"went_well"`) where `insert_all`
+   dumping expects the *runtime* atom, and asserting card order by searching
+   the HTML for "first" — which matched Tailwind's `first:ml-0` class in the
+   header, thousands of bytes before any card. All caught by the suite while
+   it was being written; fixed within `2e9fa0a`.
+
 ## Provenance: who wrote what
 
 This repository was built by a developer working with Claude Code under the
@@ -106,5 +168,7 @@ From Phase 7 on, by the developer's explicit decision
 test suite is entirely AI-authored** — the original plan had the developer
 writing most tests, and that did not happen. [LEARNING_LOG.md](LEARNING_LOG.md)
 records the AI's mistakes (stale APIs, wrong assumptions, self-inflicted test
-failures) and is a primary deliverable, not an appendix. ADRs and the full
-"Where the AI got it wrong" write-up land in Phase 10.
+failures) and is a primary deliverable, not an appendix. Provenance errors were
+corrected in both directions — including once when the developer attributed his
+own decisions to the AI, and once when he credited a real behavior to a
+nonexistent cause (entry 4 above).

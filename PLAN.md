@@ -343,8 +343,10 @@ End every session with:
 
 ## 7. Definition of done for the whole project
 
-- [ ] Public URL, works on two devices simultaneously.
-- [ ] `mix test` green, with tests I wrote myself.
+- [ ] Public URL, works on two devices simultaneously. *(Amended with Phase 9: no cloud
+  deploy — `docker compose up` from a fresh clone instead.)*
+- [ ] `mix test` green, with tests I wrote myself. *(Amended by §1a: the suite is
+  AI-authored; 48 tests, green.)*
 - [ ] `LEARNING_LOG.md` with real entries, not retrofitted ones.
 - [ ] Two ADRs.
 - [ ] Commit history spread over several sessions, one phase per commit.

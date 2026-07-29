@@ -25,4 +25,4 @@ contract.
 - Postgres 17 (Homebrew service, role postgres/postgres)
 
 ## Status
-- Phases 0–9 + mini-step 6.5 done. Suite: 48 tests green; breaking the PubSub broadcast fails exactly 5. Tests AI-authored per amendment §1a. Phase 9 amended (no cloud deploy): Docker release + docker-compose (app+pg17+demo seed, verified end-to-end) + README (run paths, multi-node notes, provenance). Next: Phase 10 (ADR-0001/0002 + "Where the AI got it wrong" README section); interview dry-run stays on the developer.
+- ALL PHASES DONE (0–10 + mini-step 6.5). Suite: 48 tests green. Docker Compose is the default run path (user decision — no native mix phx.server). Docs: README (run paths, diagram, "Where the AI got it wrong" with commit hashes, multi-node notes, provenance), docs/adr/0001 + 0002. Remaining items are the developer's own: push to GitHub, 2-minute screencast, section-7 interview dry-run with the repo closed.
