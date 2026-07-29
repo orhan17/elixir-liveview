@@ -25,4 +25,4 @@ contract.
 - Postgres 17 (Homebrew service, role postgres/postgres)
 
 ## Status
-- Phases 0–7 + mini-step 6.5 done (…, edit-own-card, write-behind persistence: nextval ids, whole-row upsert flush every 5s, trap_exit + honest terminate/2, idle shutdown 10 min). Next: Phase 8 (tests — AI-authored per amendment §1a).
+- Phases 0–8 + mini-step 6.5 done. Suite: 48 tests green (context/changesets, BoardServer incl. write-behind failure semantics, LiveView two-client flows); breaking the PubSub broadcast fails exactly 5 of them. Tests AI-authored per amendment §1a. Next: Phase 9 (Fly.io deploy + Docker; multi-node README notes; interview dry-run), then Phase 10 (README + ADR-0001/0002).

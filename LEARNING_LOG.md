@@ -93,3 +93,23 @@ written, why it was wrong, how it was caught, and the fix. Newest entries at the
   observable outcome is identical right up until someone acts on the false cause.
 - **Why it is in this log:** at the developer's request, with his framing: "верный
   вывод, ложная причина — худший вид правильного ответа; ловится только чтением кода."
+
+## 2026-07-30 — Phase 8: five AI mistakes caught by the suite while writing the suite
+
+All AI-authored (per amendment §1a), all caught within one `mix test` cycle:
+
+- **`insert_all` + Ecto.Enum direction confusion:** the AI verified that `insert_all`
+  "dumps entries" but passed the *database* representation (`"went_well"`), when dumping
+  expects the *runtime* one (`:went_well`). Verified the wrong half of the contract.
+- **Substring assertion hit a CSS class:** asserting card order by searching the HTML for
+  "first" matched Tailwind's `first:ml-0` in the header, thousands of bytes before any
+  card. Assertion markers must not be dictionary words.
+- **Asserted an error message from memory** ("has invalid format") instead of reading the
+  custom message the same AI wrote into `Board.changeset` in Phase 1 ("only lowercase
+  letters, digits and hyphens") — and the 1-char slug case also stacks a length error, so
+  the exact-list match was doubly wrong. Same family as the Phase 3/5 entries: the AI
+  forgetting its own earlier decisions.
+- **Assumed `create_board` starts a BoardServer** — servers start on first *card* touch;
+  the restart test killed a server that had never existed.
+- **Killed a linked LiveView without trapping exits**, taking the test process down with
+  it — the exact link semantics this project documented two phases earlier.
