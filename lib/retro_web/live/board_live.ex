@@ -16,6 +16,14 @@ defmodule RetroWeb.BoardLive do
         # Unknown slug raises Ecto.NoResultsError, which Phoenix renders as 404.
         board = Boards.get_board_by_slug!(slug)
 
+        # Subscribe only in the connected mount: the disconnected one runs in a
+        # short-lived HTTP process that dies right after rendering — it will
+        # never be around to receive a message. Subscribe BEFORE list_cards:
+        # an event landing in the gap then shows up twice (once in the list,
+        # once as a message), which upsert_card below absorbs; the reverse
+        # order would LOSE the event instead.
+        if connected?(socket), do: Boards.subscribe(board)
+
         socket =
           socket
           |> assign(:board, board)
@@ -37,12 +45,9 @@ defmodule RetroWeb.BoardLive do
 
     case Boards.create_card(socket.assigns.board, params) do
       {:ok, _card} ->
-        socket =
-          socket
-          |> assign(:cards, Boards.list_cards(socket.assigns.board))
-          |> assign(:forms, empty_forms())
-
-        {:noreply, socket}
+        # Deliberately NOT touching :cards here — our own card comes back via
+        # the broadcast into handle_info, same as everyone else's. One path.
+        {:noreply, assign(socket, :forms, empty_forms())}
 
       {:error, changeset} ->
         lane = Ecto.Changeset.get_field(changeset, :lane)
@@ -56,6 +61,20 @@ defmodule RetroWeb.BoardLive do
 
         {:noreply, assign(socket, :forms, forms)}
     end
+  end
+
+  # handle_info/2 = a message from ANOTHER process (here: PubSub delivering a
+  # broadcast into this process's mailbox). The browser is never the sender.
+  def handle_info({:card_created, %Card{} = card}, socket) do
+    {:noreply, update(socket, :cards, &upsert_card(&1, card))}
+  end
+
+  def handle_info({:card_updated, %Card{} = card}, socket) do
+    {:noreply, update(socket, :cards, &upsert_card(&1, card))}
+  end
+
+  def handle_info({:card_deleted, %Card{} = card}, socket) do
+    {:noreply, update(socket, :cards, &Enum.reject(&1, fn c -> c.id == card.id end))}
   end
 
   def render(assigns) do
@@ -105,6 +124,14 @@ defmodule RetroWeb.BoardLive do
   end
 
   defp cards_in(cards, lane), do: Enum.filter(cards, &(&1.lane == lane))
+
+  # Idempotent by id (drop-then-insert), so a create delivered twice — e.g. an
+  # event landing between subscribe and list_cards — cannot duplicate a card.
+  # In-memory ordering reuses Card.sort_key/1, the same rule as the SQL query.
+  defp upsert_card(cards, card) do
+    [card | Enum.reject(cards, &(&1.id == card.id))]
+    |> Enum.sort_by(&Card.sort_key/1)
+  end
 
   # Multiple function clauses: pattern matching picks the clause by argument —
   # this replaces a case/switch and is the idiomatic Elixir dispatch.

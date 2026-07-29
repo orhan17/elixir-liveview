@@ -40,3 +40,13 @@ written, why it was wrong, how it was caught, and the fix. Newest entries at the
 - **Why it is in this log:** the README will include a decision-provenance section;
   provenance is a project artifact like code, and it must stay accurate in both
   directions — including when the error favors the AI.
+
+## 2026-07-29 — Phase 3: AI's test fixture violated the project's own validation
+
+- **What was written:** throwaway acceptance test used `slug: "rt"` — 2 characters.
+- **Why it was wrong:** the Board changeset (written by the same AI two phases earlier)
+  requires slug length 3–40; all four tests failed in setup with `valid?: false`.
+- **How it was caught:** the validation did its job — `{:ok, board} = create_board(...)`
+  crashed on the error tuple before any LiveView code ran.
+- **Fix:** `slug: "rt-smoke"`. Small, but a fair example of the failure mode "the AI
+  forgets constraints it wrote itself once they scroll out of its context".

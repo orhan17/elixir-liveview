@@ -9,6 +9,12 @@ defmodule Retro.Boards do
   alias Retro.Boards.{Board, Card}
   alias Retro.Repo
 
+  # Pub/sub lives in the context so every writer — LiveView today, BoardServer
+  # in Phase 6 — triggers the same notifications through one code path.
+  def subscribe(%Board{} = board) do
+    Phoenix.PubSub.subscribe(Retro.PubSub, topic(board.slug))
+  end
+
   def create_board(attrs) do
     %Board{}
     |> Board.changeset(attrs)
@@ -50,6 +56,7 @@ defmodule Retro.Boards do
         changeset
         |> Ecto.Changeset.put_change(:position, next_position(board.id, lane))
         |> Repo.insert()
+        |> broadcast_result(:card_created)
     end
   end
 
@@ -57,12 +64,31 @@ defmodule Retro.Boards do
     card
     |> Card.changeset(attrs)
     |> Repo.update()
+    |> broadcast_result(:card_updated)
   end
 
-  def delete_card(%Card{} = card), do: Repo.delete(card)
+  def delete_card(%Card{} = card) do
+    card
+    |> Repo.delete()
+    |> broadcast_result(:card_deleted)
+  end
 
   # `attrs \\ %{}` declares a default argument; used by the Phase 2 form.
   def change_card(%Card{} = card, attrs \\ %{}), do: Card.changeset(card, attrs)
+
+  defp topic(slug), do: "board:" <> slug
+
+  # Broadcast to EVERYONE, sender included: subscribers (the sender's own
+  # LiveView too) apply changes only in handle_info — one code path, so the
+  # self-echo double-render bug cannot exist. The slug lookup is a stopgap
+  # until Phase 6, when BoardServer owns both the slug and the broadcasting.
+  defp broadcast_result({:ok, %Card{} = card}, event) do
+    slug = Repo.one!(from b in Board, where: b.id == ^card.board_id, select: b.slug)
+    Phoenix.PubSub.broadcast(Retro.PubSub, topic(slug), {event, card})
+    {:ok, card}
+  end
+
+  defp broadcast_result({:error, _changeset} = error, _event), do: error
 
   # defp = private to this module. New cards append to their lane: max + 1.0
   # (`||` returns the left side unless it is nil/false — hence 0.0 for an
