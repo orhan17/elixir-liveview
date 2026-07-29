@@ -1,0 +1,34 @@
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: retro_prod
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d retro_prod"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  app:
+    build: .
+    ports:
+      - "4000:4000"
+    environment:
+      DATABASE_URL: ecto://postgres:postgres@db/retro_prod
+      # Demo-only secret so `docker compose up` works out of the box.
+      # For anything beyond a local demo generate your own: mix phx.gen.secret
+      SECRET_KEY_BASE: Jr8CfJ69/VSJc7VnZaBFNnC4+42cJ/nXxWVTg6gtxB04lKK9E5/J6OAGXwi66eJn
+      PHX_HOST: localhost
+      PORT: "4000"
+    depends_on:
+      db:
+        condition: service_healthy
+    # migrate + seed the demo board, then start the server
+    command: sh -c "/app/bin/retro eval 'Retro.Release.setup()' && exec /app/bin/server"
+
+volumes:
+  pgdata:

@@ -268,6 +268,14 @@ window of cards is missing — and I can say precisely what that window is.
 
 ### Phase 9 — Deploy
 
+> **Amended 2026-07-30 (developer's decision):** no cloud deploy. Reviewers will clone
+> from GitHub and run the app themselves, so the deliverables become: the generated
+> Docker release, a `docker-compose.yml` that boots app + Postgres + demo board in one
+> command, and a README that documents both the Docker and the native path.
+> Acceptance replaced accordingly: `docker compose up --build` on a fresh clone serves
+> a working board at `http://localhost:4000/b/demo`. The multi-node README notes and
+> the interview dry-run below remain in force.
+
 - `mix phx.gen.release --docker`, deploy to Fly.io, single region, attached Postgres.
 - Confirm websockets work through the proxy and that two devices on different networks
   stay in sync.

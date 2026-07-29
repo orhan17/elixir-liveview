@@ -2,10 +2,12 @@
 #
 #     mix run priv/repo/seeds.exs
 #
-# Inside the script, you can read and write to any of your
-# repositories directly:
-#
-#     Retro.Repo.insert!(%Retro.SomeSchema{})
-#
-# We recommend using the bang functions (`insert!`, `update!`
-# and so on) as they will fail if something goes wrong.
+# Idempotent: creates the /b/demo board once so a fresh checkout has
+# something to open. `mix ecto.setup` runs this automatically; the Docker
+# image gets the same board via Retro.Release.setup/0.
+
+alias Retro.Boards
+
+unless Boards.get_board_by_slug("demo") do
+  {:ok, _board} = Boards.create_board(%{slug: "demo", title: "Demo Retro"})
+end
