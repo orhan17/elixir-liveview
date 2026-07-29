@@ -18,6 +18,13 @@ defmodule RetroWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+
+    # Name prompt is a regular controller: a LiveView cannot write the HTTP
+    # session (its life happens over a websocket), so the name is stored by a
+    # plain POST + redirect before the LiveView ever mounts.
+    get "/b/:slug/join", JoinController, :new
+    post "/b/:slug/join", JoinController, :create
+    live "/b/:slug", BoardLive
   end
 
   # Other scopes may use custom stacks.

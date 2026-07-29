@@ -1,0 +1,20 @@
+<Layouts.app flash={@flash}>
+  <.header>
+    Join "{@board.title}"
+    <:subtitle>Pick a display name — no signup, it lives in your session.</:subtitle>
+  </.header>
+
+  <.form for={%{}} action={~p"/b/#{@board.slug}/join"}>
+    <div class="space-y-4">
+      <.input
+        type="text"
+        name="display_name"
+        value={@display_name}
+        label="Display name"
+        maxlength="60"
+        required
+      />
+      <.button variant="primary">Join board</.button>
+    </div>
+  </.form>
+</Layouts.app>
