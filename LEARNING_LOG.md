@@ -77,3 +77,19 @@ written, why it was wrong, how it was caught, and the fix. Newest entries at the
 - **Fix:** container renamed to `cards-#{lane}`. Same failure family as the Phase 3 slug
   entry: the AI forgetting its own earlier decisions once they scroll out of context —
   this time caught by tooling instead of by a failing changeset.
+
+## 2026-07-29 — Phase 5: right conclusion, false cause (developer-side, logged deliberately)
+
+- **What was said:** in the Phase 5 learning check the developer attributed DOM-node
+  survival during drag patches to a `:key` attribute on the `:for` — an attribute the
+  template does not contain.
+- **Why it was wrong:** the real mechanism is the `id="card-#{card.id}"` written back in
+  Phase 2: morphdom keys nodes on `node.id` (`getNodeKey`, dom_patch.ts:216). The
+  explanation matched the observed behavior perfectly while naming a nonexistent cause —
+  had someone later removed the "redundant" id and kept `:key` faith, nodes would start
+  being destroyed and recreated while the explanation kept sounding convincing.
+- **How it was caught:** rule 1 — verification against deps sources, not against
+  behavior. This error class is invisible to behavioral testing by construction: the
+  observable outcome is identical right up until someone acts on the false cause.
+- **Why it is in this log:** at the developer's request, with his framing: "верный
+  вывод, ложная причина — худший вид правильного ответа; ловится только чтением кода."
