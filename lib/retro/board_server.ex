@@ -50,7 +50,12 @@ defmodule Retro.BoardServer do
 
   def create_card(slug, attrs), do: call(slug, {:create_card, attrs})
 
-  def update_card(slug, id, attrs) when is_integer(id), do: call(slug, {:update_card, id, attrs})
+  # editor_name is the caller's session identity: ownership ("edit your own
+  # card") is enforced HERE, in the single writer — the UI hiding the button
+  # is cosmetics, not security.
+  def update_card(slug, id, attrs, editor_name) when is_integer(id) and is_binary(editor_name) do
+    call(slug, {:update_card, id, attrs, editor_name})
+  end
 
   def delete_card(slug, id) when is_integer(id), do: call(slug, {:delete_card, id})
 
@@ -103,10 +108,15 @@ defmodule Retro.BoardServer do
     end
   end
 
-  def handle_call({:update_card, id, attrs}, _from, state) do
+  def handle_call({:update_card, id, attrs, editor_name}, _from, state) do
     case fetch_card(state, id) do
-      {:ok, card} ->
+      {:ok, %Card{author_name: ^editor_name} = card} ->
         card |> Card.changeset(attrs) |> Repo.update() |> reply_and_broadcast(:card_updated, state)
+
+      # A card that exists but belongs to someone else: the pin above did not
+      # match, so this clause catches it as a plain authorization failure.
+      {:ok, %Card{}} ->
+        {:reply, {:error, :forbidden}, state}
 
       error ->
         {:reply, error, state}

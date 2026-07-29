@@ -40,6 +40,8 @@ defmodule RetroWeb.BoardLive do
           |> assign(:forms, empty_forms())
           |> assign(:online, online_names(board))
           |> assign(:typing, %{})
+          |> assign(:editing, nil)
+          |> assign(:edit_form, nil)
 
         {:ok, socket}
     end
@@ -91,6 +93,44 @@ defmodule RetroWeb.BoardLive do
     end
 
     {:noreply, socket}
+  end
+
+  # Inline edit of own cards. The author check here only decides what UI to
+  # show — the real enforcement is the editor_name check in BoardServer.
+  def handle_event("edit_card", %{"id" => id}, socket) do
+    card =
+      Enum.find(
+        socket.assigns.cards,
+        &(to_string(&1.id) == to_string(id) and &1.author_name == socket.assigns.display_name)
+      )
+
+    if card do
+      {:noreply, assign(socket, editing: card.id, edit_form: to_form(Boards.change_card(card)))}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_event("cancel_edit", _params, socket) do
+    {:noreply, assign(socket, editing: nil, edit_form: nil)}
+  end
+
+  def handle_event("update_card", %{"card" => params}, socket) do
+    %{board: board, editing: id, display_name: editor} = socket.assigns
+
+    # Only the body is editable; lane/position move via drag, votes via ▲.
+    case id && Boards.update_card(board, id, Map.take(params, ["body"]), editor) do
+      {:ok, _card} ->
+        # The edited card comes back via the broadcast — same single path.
+        {:noreply, assign(socket, editing: nil, edit_form: nil)}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:noreply, assign(socket, :edit_form, to_form(changeset))}
+
+      # :forbidden/:not_found (card deleted mid-edit) or editing was nil.
+      _other ->
+        {:noreply, assign(socket, editing: nil, edit_form: nil)}
+    end
   end
 
   # ▲ click. Result deliberately ignored: the incremented card arrives via
@@ -205,18 +245,45 @@ defmodule RetroWeb.BoardLive do
               class="card bg-base-100 shadow-sm cursor-grab"
             >
               <div class="card-body p-3">
-                <p class="whitespace-pre-wrap text-sm">{card.body}</p>
-                <div class="text-xs opacity-60 flex justify-between">
-                  <span>{card.author_name}</span>
-                  <button
-                    type="button"
-                    class="cursor-pointer hover:text-primary"
-                    phx-click="vote"
-                    phx-value-id={card.id}
-                  >
-                    ▲ {card.votes}
-                  </button>
-                </div>
+                <%!-- block form of if/else in HEEx: <%= if %> renders one of
+                     two template branches --%>
+                <%= if @editing == card.id do %>
+                  <.form for={@edit_form} id={"edit-form-#{card.id}"} phx-submit="update_card">
+                    <div class="space-y-2">
+                      <.input field={@edit_form[:body]} type="textarea" id={"edit-body-#{card.id}"} />
+                      <div class="flex gap-2">
+                        <.button class="btn-sm">Save</.button>
+                        <button type="button" class="btn btn-sm btn-ghost" phx-click="cancel_edit">
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </.form>
+                <% else %>
+                  <p class="whitespace-pre-wrap text-sm">{card.body}</p>
+                  <div class="text-xs opacity-60 flex justify-between">
+                    <span>{card.author_name}</span>
+                    <span class="flex gap-3">
+                      <button
+                        :if={card.author_name == @display_name}
+                        type="button"
+                        class="cursor-pointer hover:text-primary"
+                        phx-click="edit_card"
+                        phx-value-id={card.id}
+                      >
+                        ✎
+                      </button>
+                      <button
+                        type="button"
+                        class="cursor-pointer hover:text-primary"
+                        phx-click="vote"
+                        phx-value-id={card.id}
+                      >
+                        ▲ {card.votes}
+                      </button>
+                    </span>
+                  </div>
+                <% end %>
               </div>
             </div>
           </div>

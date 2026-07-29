@@ -44,8 +44,8 @@ defmodule Retro.Boards do
   # Card operations are board-scoped by signature: the caller can only reach
   # cards of the board it holds — the server rejects foreign ids with
   # {:error, :not_found} because they are simply absent from its state.
-  def update_card(%Board{} = board, card_id, attrs) do
-    BoardServer.update_card(board.slug, card_id, attrs)
+  def update_card(%Board{} = board, card_id, attrs, editor_name) do
+    BoardServer.update_card(board.slug, card_id, attrs, editor_name)
   end
 
   def delete_card(%Board{} = board, card_id) do
