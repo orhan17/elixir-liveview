@@ -20,4 +20,4 @@ Read PLAN.md fully. This file is the short version future sessions must obey.
 - Postgres 17 (Homebrew service, role postgres/postgres)
 
 ## Status
-- Phase 0 done. Next: Phase 1 (domain + persistence, no realtime).
+- Phases 0–4 done (schema, board UI, realtime cards, presence + typing). Next: Phase 5 (drag and drop — first JS hook; ask before adding a dependency).

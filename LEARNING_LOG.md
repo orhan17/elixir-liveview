@@ -50,3 +50,17 @@ written, why it was wrong, how it was caught, and the fix. Newest entries at the
   crashed on the error tuple before any LiveView code ran.
 - **Fix:** `slug: "rt-smoke"`. Small, but a fair example of the failure mode "the AI
   forgets constraints it wrote itself once they scroll out of its context".
+
+## 2026-07-29 — Phase 2→4: a deferred unknown, closed two phases later (not an error)
+
+- **What was said:** in the Phase 2 learning check the developer answered "I don't know"
+  to whether a textarea draft survives a server restart, recalling only the name
+  `phx-auto-recover`. Verification (LiveView's `view.ts`, `getFormsForRecovery`) showed
+  recovery applies only to forms **with** `phx-change` — which Phase 2's forms lacked, so
+  drafts were lost.
+- **How it closed:** Phase 4's typing indicator added `phx-change` to the card forms and
+  mirrors the draft into the form assign — form recovery switched on as a designed side
+  effect. Kill the server mid-draft, restart, reconnect: the draft comes back.
+- **Why it is in this log:** logged at the developer's request as the counterpart to the
+  error entries — a tracked unknown that was carried openly for two phases and then
+  closed by code, instead of being papered over with a guess at the moment it was asked.
