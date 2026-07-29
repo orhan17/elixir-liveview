@@ -14,6 +14,11 @@ Read PLAN.md fully. This file is the short version future sessions must obey.
 9. Log every AI mistake to LEARNING_LOG.md — it is a primary deliverable.
 10. One conventional commit per phase; propose message, user approves (per-phase commits pre-authorized).
 
+AMENDMENT (2026-07-30, after Phase 6 — see PLAN.md §1a): rules 2/3/4 suspended (no go-gates,
+no learning checks), rule 8 amended (Phase 8 tests are AI-authored — restate in README
+provenance), rule 5 relaxed. Rules 1/6/7/9/10 remain. Phases 0–6 were built under the full
+contract.
+
 ## Pinned versions (write all code against these)
 - Elixir 1.20.2 / Erlang OTP 29 · Phoenix 1.8.9 · LiveView 1.2.8
 - Ecto 3.14.1 / ecto_sql 3.14.0 / postgrex 0.22.3 · Bandit 1.12.4 · phoenix_pubsub 2.2.0

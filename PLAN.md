@@ -60,6 +60,28 @@ than no repo at all. Slow down. Teach. Stop often.
 
 ---
 
+## 1a. Amendment — 2026-07-30, after Phase 6 (developer's decision)
+
+The process above was followed in full for Phases 0–6. For the remaining implementation
+work (mini-step 6.5, Phases 7–8) the developer explicitly chose speed over the learning
+ritual, so:
+
+- **Rules 2, 3, 4 are suspended.** No per-phase "go" gates, no plan approval waits, and
+  no learning checks from here on. The Phase 6 learning check was posed and left
+  unanswered — the checks stop exactly there. The AI implements autonomously; the
+  developer reviews diffs and re-runs acceptance manually after the fact.
+- **Rule 8 is amended: the Phase 8 test suite is authored entirely by the AI.** The
+  original intent — the developer writes the setup, the first test in each file, and
+  most assertions — was **not** carried out. This attribution is part of the project's
+  provenance and must be restated in the README's provenance section.
+- **Rule 5 is relaxed** to "working increments, one commit per phase".
+- **Rules 1, 6, 7, 9, 10 remain in force** (verify against pinned versions; comment
+  idioms once; no new deps without asking; LEARNING_LOG; conventional commits).
+
+This amendment exists so the repository never claims a process that did not happen.
+
+---
+
 ## 2. The product
 
 **Live Retro Board** — realtime retrospective boards.
