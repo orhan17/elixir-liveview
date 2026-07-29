@@ -16,3 +16,27 @@ written, why it was wrong, how it was caught, and the fix. Newest entries at the
   output before running the generator, instead of trusting memory/the plan.
 - **Fix:** ran `mix phx.new . --app retro --module Retro` (defaults already include
   LiveView, Postgres, Bandit).
+
+## 2026-07-29 — Phase 1: card field `column` renamed to `lane` after review
+
+- **What was written:** the first `create_cards` migration used the field name `column`,
+  copied verbatim from PLAN.md.
+- **Why it was wrong:** `COLUMN` is a reserved word in SQL (survivable — Ecto quotes all
+  identifiers, but raw psql needs `"column"`), and worse, the term was overloaded:
+  "board column" vs "table column" would collide in every conversation and ADR.
+- **How it was caught:** flagged in review of the applied migration, before any schema
+  code depended on the name — the cheapest possible moment to rename.
+- **Fix:** `mix ecto.rollback`, renamed to `lane` (values `:went_well | :to_improve |
+  :action_items`), PLAN.md wording updated to match the code.
+
+## 2026-07-29 — Phase 1: decision-provenance slip (developer-side, logged deliberately)
+
+- **What happened:** not a code error — an attribution one, and by the developer, not the
+  AI. The developer attributed his own decisions to the assistant (float positions,
+  `votes` kept out of `cast/3`, the `get_board_by_slug` / `!` pair — all proposed by the
+  developer in the step 4–6 refinements, later described as "your decisions, not mine").
+- **How it was caught:** the assistant checked the claim against the conversation record
+  and corrected it.
+- **Why it is in this log:** the README will include a decision-provenance section;
+  provenance is a project artifact like code, and it must stay accurate in both
+  directions — including when the error favors the AI.

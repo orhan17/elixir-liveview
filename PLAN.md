@@ -66,9 +66,10 @@ than no repo at all. Slow down. Teach. Stop often.
 
 - A board lives at `/b/:slug`. No signup: on first visit the user picks a display name,
   stored in the session.
-- Board has fixed columns (`Went well`, `To improve`, `Action items`).
+- Board has fixed lanes (`Went well`, `To improve`, `Action items`) — "lane", not
+  "column", to avoid the SQL reserved word and the board-column/table-column ambiguity.
 - Anyone on the board can add a card, edit their own card, vote on any card, and drag
-  cards between columns.
+  cards between lanes.
 - Every change appears for all connected users instantly.
 - Connected users are visible (avatar strip); "N is typing…" appears while someone drafts
   a card.
@@ -134,11 +135,12 @@ Each phase: plan → my "go" → code → acceptance criteria pass → learning 
 
 ### Phase 1 — Domain and persistence, no realtime
 
-- Ecto schemas: `Board` (slug, title), `Card` (board_id, column, body, author_name,
+- Ecto schemas: `Board` (slug, title), `Card` (board_id, lane, body, author_name,
   position, votes). Migrations only, no business logic in schemas.
 - Context module `Retro.Boards` with `create_board/1`, `get_board_by_slug/1`,
   `list_cards/1`, `create_card/2`, `update_card/2`, `delete_card/1`.
-- Changesets with real validation (body length, column must be one of the three).
+- Changesets with real validation (body length, lane must be one of
+  `:went_well | :to_improve | :action_items`).
 - Explain: what a *context* is in Phoenix and why the schema is not the model. I come from
   Eloquent/Doctrine — name the difference directly.
 
@@ -148,7 +150,11 @@ Each phase: plan → my "go" → code → acceptance criteria pass → learning 
 ### Phase 2 — First LiveView, single user
 
 - Route `/b/:slug` → `RetroWeb.BoardLive`.
-- `mount/3` loads the board, `render/1` shows three columns with cards.
+- `mount/3` loads the board, `render/1` shows three lanes with cards.
+- Lane order: the template MUST iterate `Card.lanes/0` (UI order: went_well, to_improve,
+  action_items) and filter cards per lane — never render query order. `list_cards/1`
+  returns lanes alphabetically (SQL mirror of `Card.sort_key/1`), which is grouping
+  order, not display order; rendering it directly would silently reverse the columns.
 - Name prompt on first visit, stored in session, no auth.
 - Add a card via `phx-submit`. Nothing realtime yet — a second tab stays stale on purpose,
   and I want to *see* that before we fix it.
@@ -185,8 +191,8 @@ Each phase: plan → my "go" → code → acceptance criteria pass → learning 
 ### Phase 5 — Drag and drop
 
 - One LiveView JS hook (Sortable-style, hand-rolled or a small vendored lib — ask before
-  adding a dependency) for reordering within and between columns.
-- Persist `column` + `position` on drop; broadcast to everyone.
+  adding a dependency) for reordering within and between lanes.
+- Persist `lane` + `position` on drop; broadcast to everyone.
 - Handle the conflict case: two users drag the same card at once. Define and document the
   resolution (last write wins is acceptable — say so out loud in the ADR).
 
@@ -245,6 +251,9 @@ window of cards is missing — and I can say precisely what that window is.
   stay in sync.
 - Note in the README what would change with more than one node (PubSub adapter, Registry
   scope, board affinity) — **without implementing it**. Knowing the limit is the point.
+- Interview dry-run, the day before: answer the section-7 self-check list aloud, from
+  memory, repo closed. Whatever does not come out goes back into work. "I understood the
+  explanation" and "I can explain" are different things — this is where the gap shows.
 
 **Acceptance:** a public URL I can open on a phone during a call.
 `STOP`
