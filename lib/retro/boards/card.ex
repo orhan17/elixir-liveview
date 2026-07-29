@@ -30,11 +30,11 @@ defmodule Retro.Boards.Card do
   # the lane check right in the function head.
   defguard is_lane(lane) when lane in @lanes
 
-  # THE single definition of card ordering; the SQL order_by in
-  # Retro.Boards.list_cards/1 is its mirror — change them only as a pair.
-  # Lane compares as a string because that is exactly how Postgres orders the
-  # varchar column (cross-lane order is grouping only; the UI renders lanes as
-  # separate containers). `__MODULE__` is the current module, i.e. Card.
+  # THE single definition of card ordering. Since Phase 6 it is applied in
+  # exactly one place — BoardServer's in-memory sort; the SQL mirror it once
+  # had in list_cards died with that query. Lane still compares as a string
+  # (cross-lane order is grouping only; the UI renders lanes as separate
+  # containers). `__MODULE__` is the current module, i.e. Card.
   def sort_key(%__MODULE__{} = card), do: {Atom.to_string(card.lane), card.position, card.id}
 
   # :votes and :position are deliberately NOT in cast/3: whatever is listed

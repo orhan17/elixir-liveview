@@ -15,8 +15,11 @@ defmodule Retro.Application do
       # Presence must start after the PubSub it rides on and before the
       # Endpoint that produces the processes it tracks.
       RetroWeb.Presence,
-      # Start a worker by calling: Retro.Worker.start_link(arg)
-      # {Retro.Worker, arg},
+      # Board processes: Registry maps slug -> pid, DynamicSupervisor starts
+      # BoardServers on demand and restarts crashed ones. Before the Endpoint
+      # for the same reason Presence is: traffic must arrive last.
+      {Registry, keys: :unique, name: Retro.BoardRegistry},
+      {DynamicSupervisor, name: Retro.BoardSupervisor, strategy: :one_for_one},
       # Start to serve requests, typically the last entry
       RetroWeb.Endpoint
     ]

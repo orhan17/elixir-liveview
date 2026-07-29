@@ -84,11 +84,20 @@ defmodule RetroWeb.BoardLive do
     card = Enum.find(socket.assigns.cards, &(to_string(&1.id) == to_string(id)))
 
     if lane && card && is_integer(new_index) && new_index >= 0 do
-      # A concurrently deleted card makes Repo.update raise StaleEntryError —
-      # crash-and-remount is acceptable for that race until Phase 6 serializes.
-      {:ok, _card} = Boards.reposition_card(card, lane, new_index)
+      # Delete-vs-reposition now serializes in the BoardServer mailbox: a
+      # concurrently deleted card comes back as a clean {:error, :not_found}
+      # (the StaleEntryError crash of the pre-Phase-6 design is gone).
+      _ = Boards.reposition_card(socket.assigns.board, card.id, lane, new_index)
     end
 
+    {:noreply, socket}
+  end
+
+  # ▲ click. Result deliberately ignored: the incremented card arrives via
+  # the broadcast, and a vanished card is a benign {:error, :not_found}.
+  def handle_event("vote", %{"id" => id}, socket) do
+    card = Enum.find(socket.assigns.cards, &(to_string(&1.id) == to_string(id)))
+    if card, do: Boards.vote_card(socket.assigns.board, card.id)
     {:noreply, socket}
   end
 
@@ -199,7 +208,14 @@ defmodule RetroWeb.BoardLive do
                 <p class="whitespace-pre-wrap text-sm">{card.body}</p>
                 <div class="text-xs opacity-60 flex justify-between">
                   <span>{card.author_name}</span>
-                  <span>▲ {card.votes}</span>
+                  <button
+                    type="button"
+                    class="cursor-pointer hover:text-primary"
+                    phx-click="vote"
+                    phx-value-id={card.id}
+                  >
+                    ▲ {card.votes}
+                  </button>
                 </div>
               </div>
             </div>

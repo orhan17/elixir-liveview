@@ -20,4 +20,4 @@ Read PLAN.md fully. This file is the short version future sessions must obey.
 - Postgres 17 (Homebrew service, role postgres/postgres)
 
 ## Status
-- Phases 0–5 done (schema, board UI, realtime cards, presence + typing, drag-and-drop via vendored SortableJS). Next: Phase 6 (BoardServer/Registry/DynamicSupervisor — the centrepiece; go slower).
+- Phases 0–6 done (schema, board UI, realtime cards, presence + typing, drag-and-drop, BoardServer/Registry/DynamicSupervisor as single writer + voting; write-through). Next: mini-step edit-own-card, then Phase 7 (write-behind; answer the UPDATE delta-vs-row question first).
