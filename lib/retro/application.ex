@@ -12,6 +12,9 @@ defmodule Retro.Application do
       Retro.Repo,
       {DNSCluster, query: Application.get_env(:retro, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Retro.PubSub},
+      # Presence must start after the PubSub it rides on and before the
+      # Endpoint that produces the processes it tracks.
+      RetroWeb.Presence,
       # Start a worker by calling: Retro.Worker.start_link(arg)
       # {Retro.Worker, arg},
       # Start to serve requests, typically the last entry

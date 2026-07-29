@@ -12,8 +12,13 @@ defmodule Retro.Boards do
   # Pub/sub lives in the context so every writer — LiveView today, BoardServer
   # in Phase 6 — triggers the same notifications through one code path.
   def subscribe(%Board{} = board) do
-    Phoenix.PubSub.subscribe(Retro.PubSub, topic(board.slug))
+    Phoenix.PubSub.subscribe(Retro.PubSub, topic(board))
   end
+
+  # Public: the web layer needs the same topic string for Presence tracking
+  # and transient (non-domain) broadcasts like typing indicators.
+  def topic(%Board{slug: slug}), do: topic(slug)
+  def topic(slug) when is_binary(slug), do: "board:" <> slug
 
   def create_board(attrs) do
     %Board{}
@@ -75,8 +80,6 @@ defmodule Retro.Boards do
 
   # `attrs \\ %{}` declares a default argument; used by the Phase 2 form.
   def change_card(%Card{} = card, attrs \\ %{}), do: Card.changeset(card, attrs)
-
-  defp topic(slug), do: "board:" <> slug
 
   # Broadcast to EVERYONE, sender included: subscribers (the sender's own
   # LiveView too) apply changes only in handle_info — one code path, so the

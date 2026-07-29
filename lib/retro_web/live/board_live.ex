@@ -3,6 +3,9 @@ defmodule RetroWeb.BoardLive do
 
   alias Retro.Boards
   alias Retro.Boards.Card
+  alias RetroWeb.Presence
+
+  @typing_timeout_ms 3000
 
   # mount/3 runs TWICE per visit: once for the plain HTTP render (disconnected),
   # then again in a fresh process when the browser's websocket connects. That
@@ -22,7 +25,12 @@ defmodule RetroWeb.BoardLive do
         # an event landing in the gap then shows up twice (once in the list,
         # once as a message), which upsert_card below absorbs; the reverse
         # order would LOSE the event instead.
-        if connected?(socket), do: Boards.subscribe(board)
+        if connected?(socket) do
+          Boards.subscribe(board)
+          # Track AFTER subscribing, so our own join diff also reaches us and
+          # the roster updates through the same single path as everyone else's.
+          {:ok, _ref} = Presence.track(self(), Boards.topic(board), display_name, %{})
+        end
 
         socket =
           socket
@@ -30,6 +38,8 @@ defmodule RetroWeb.BoardLive do
           |> assign(:display_name, display_name)
           |> assign(:cards, Boards.list_cards(board))
           |> assign(:forms, empty_forms())
+          |> assign(:online, online_names(board))
+          |> assign(:typing, %{})
 
         {:ok, socket}
     end
@@ -63,6 +73,28 @@ defmodule RetroWeb.BoardLive do
     end
   end
 
+  # Throttled phx-change from a compose box. Two jobs: tell the room someone
+  # is typing, and mirror the draft into this lane's form assign — which is
+  # exactly what makes LiveView's form recovery restore it after a reconnect.
+  def handle_event("typing", %{"card" => params}, socket) do
+    Phoenix.PubSub.broadcast(
+      Retro.PubSub,
+      Boards.topic(socket.assigns.board),
+      {:typing, socket.assigns.display_name}
+    )
+
+    lane = Enum.find(Card.lanes(), &(Atom.to_string(&1) == params["lane"]))
+
+    forms =
+      if lane do
+        Map.put(socket.assigns.forms, lane, to_form(Boards.change_card(%Card{}, params)))
+      else
+        socket.assigns.forms
+      end
+
+    {:noreply, assign(socket, :forms, forms)}
+  end
+
   # handle_info/2 = a message from ANOTHER process (here: PubSub delivering a
   # broadcast into this process's mailbox). The browser is never the sender.
   def handle_info({:card_created, %Card{} = card}, socket) do
@@ -77,13 +109,53 @@ defmodule RetroWeb.BoardLive do
     {:noreply, update(socket, :cards, &Enum.reject(&1, fn c -> c.id == card.id end))}
   end
 
+  # Presence broadcasts its diffs on the same board topic. Re-reading the full
+  # list on every diff is deliberate: applying joins/leaves incrementally is an
+  # optimization we don't need at a retro board's roster size.
+  def handle_info(%Phoenix.Socket.Broadcast{event: "presence_diff"}, socket) do
+    {:noreply, assign(socket, :online, online_names(socket.assigns.board))}
+  end
+
+  def handle_info({:typing, name}, socket) do
+    if name == socket.assigns.display_name do
+      {:noreply, socket}
+    else
+      # Re-arm the expiry timer: cancel the old one, start a fresh one. A timer
+      # that fired in the cancel race removes the name at most one throttle
+      # interval early — cosmetic, so not worth guarding against.
+      if old = socket.assigns.typing[name], do: Process.cancel_timer(old)
+      ref = Process.send_after(self(), {:typing_expired, name}, @typing_timeout_ms)
+      {:noreply, update(socket, :typing, &Map.put(&1, name, ref))}
+    end
+  end
+
+  def handle_info({:typing_expired, name}, socket) do
+    {:noreply, update(socket, :typing, &Map.delete(&1, name))}
+  end
+
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash}>
       <.header>
         {@board.title}
-        <:subtitle>You are {@display_name}. Not realtime yet — a second tab stays stale (Phase 3 fixes this).</:subtitle>
+        <:subtitle>You are {@display_name}.</:subtitle>
+        <:actions>
+          <div class="flex items-center">
+            <div
+              :for={name <- @online}
+              class="avatar avatar-placeholder -ml-1 first:ml-0"
+              title={name}
+            >
+              <div class="bg-primary text-primary-content w-8 rounded-full ring-2 ring-base-100">
+                <span class="text-xs">{initials(name)}</span>
+              </div>
+            </div>
+            <span class="text-xs opacity-60 ml-2">{length(@online)} online</span>
+          </div>
+        </:actions>
       </.header>
+
+      <p class="text-xs italic opacity-70 min-h-4">{typing_line(@typing)}</p>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <section :for={lane <- Card.lanes()} class="bg-base-200 rounded-box p-3 space-y-3">
@@ -99,7 +171,12 @@ defmodule RetroWeb.BoardLive do
             </div>
           </div>
 
-          <.form for={@forms[lane]} id={"card-form-#{lane}"} phx-submit="create_card">
+          <.form
+            for={@forms[lane]}
+            id={"card-form-#{lane}"}
+            phx-submit="create_card"
+            phx-change="typing"
+          >
             <div class="space-y-2">
               <.input field={@forms[lane][:lane]} type="hidden" id={"lane-#{lane}"} value={lane} />
               <.input
@@ -107,6 +184,7 @@ defmodule RetroWeb.BoardLive do
                 type="textarea"
                 id={"body-#{lane}"}
                 placeholder="Add a card…"
+                phx-throttle="1500"
               />
               <.button class="btn-sm">Add</.button>
             </div>
@@ -138,4 +216,24 @@ defmodule RetroWeb.BoardLive do
   defp lane_title(:went_well), do: "Went well"
   defp lane_title(:to_improve), do: "To improve"
   defp lane_title(:action_items), do: "Action items"
+
+  defp online_names(board) do
+    board |> Boards.topic() |> Presence.list() |> Map.keys() |> Enum.sort()
+  end
+
+  defp initials(name) do
+    name
+    |> String.split(~r/\s+/, trim: true)
+    |> Enum.take(2)
+    |> Enum.map_join(&String.first/1)
+    |> String.upcase()
+  end
+
+  defp typing_line(typing) when typing == %{}, do: ""
+
+  defp typing_line(typing) do
+    names = typing |> Map.keys() |> Enum.sort()
+    verb = if length(names) == 1, do: "is", else: "are"
+    Enum.join(names, ", ") <> " #{verb} typing…"
+  end
 end
