@@ -97,7 +97,9 @@ defmodule RetroWeb.BoardLiveTest do
       |> render_submit()
 
       assert render(view_b) =~ "broadcast me"
-      assert render(view_a) =~ "broadcast me", "the author's own tab renders via the same broadcast"
+
+      assert render(view_a) =~ "broadcast me",
+             "the author's own tab renders via the same broadcast"
     end
 
     test "votes propagate", %{conn: conn} do
@@ -142,7 +144,11 @@ defmodule RetroWeb.BoardLiveTest do
 
       view_a
       |> element("#cards-went_well")
-      |> render_hook("reposition", %{"id" => to_string(c1.id), "lane" => "went_well", "new_index" => 1})
+      |> render_hook("reposition", %{
+        "id" => to_string(c1.id),
+        "lane" => "went_well",
+        "new_index" => 1
+      })
 
       html = render(view_b)
       {pos_zephyr, _} = :binary.match(html, "zephyr")

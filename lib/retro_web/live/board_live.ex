@@ -81,7 +81,11 @@ defmodule RetroWeb.BoardLive do
   # trusting Repo.get by id — a forged id targeting another board dies here).
   # On :ok assigns stay untouched: the new order arrives via the broadcast,
   # same single path as everyone else's.
-  def handle_event("reposition", %{"id" => id, "lane" => lane_param, "new_index" => new_index}, socket) do
+  def handle_event(
+        "reposition",
+        %{"id" => id, "lane" => lane_param, "new_index" => new_index},
+        socket
+      ) do
     lane = Enum.find(Card.lanes(), &(Atom.to_string(&1) == lane_param))
     card = Enum.find(socket.assigns.cards, &(to_string(&1.id) == to_string(id)))
 

@@ -49,12 +49,20 @@ defmodule Retro.BoardsTest do
     end
 
     test "rejects a lane outside the enum" do
-      changeset = Boards.change_card(%Card{}, %{"lane" => "breakfast", "body" => "b", "author_name" => "a"})
+      changeset =
+        Boards.change_card(%Card{}, %{"lane" => "breakfast", "body" => "b", "author_name" => "a"})
+
       assert %{lane: ["is invalid"]} = errors_on(changeset)
     end
 
     test "trims body before validating, so whitespace-only is blank" do
-      changeset = Boards.change_card(%Card{}, %{"lane" => "went_well", "body" => "   ", "author_name" => "a"})
+      changeset =
+        Boards.change_card(%Card{}, %{
+          "lane" => "went_well",
+          "body" => "   ",
+          "author_name" => "a"
+        })
+
       assert %{body: ["can't be blank"]} = errors_on(changeset)
     end
 
@@ -101,7 +109,9 @@ defmodule Retro.BoardsTest do
 
     test "create_card with an invalid payload returns the changeset and stores nothing",
          %{board: board} do
-      assert {:error, %Ecto.Changeset{valid?: false}} = Boards.create_card(board, %{"body" => "x"})
+      assert {:error, %Ecto.Changeset{valid?: false}} =
+               Boards.create_card(board, %{"body" => "x"})
+
       assert Boards.list_cards(board) == []
     end
 
@@ -158,6 +168,7 @@ defmodule Retro.BoardsTest do
 
     test "reposition_card into an empty lane lands on 1.0", %{board: board} do
       card = card_fixture(board)
+
       assert {:ok, %Card{lane: :action_items, position: 1.0}} =
                Boards.reposition_card(board, card.id, :action_items, 0)
     end

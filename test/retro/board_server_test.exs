@@ -37,10 +37,16 @@ defmodule Retro.BoardServerTest do
 
       # write directly to the DB — the server must pick these up on boot
       Repo.insert_all(Card, [
-        %{board_id: board.id, lane: :went_well, body: "from db", author_name: "x",
-          position: 1.0, votes: 3,
+        %{
+          board_id: board.id,
+          lane: :went_well,
+          body: "from db",
+          author_name: "x",
+          position: 1.0,
+          votes: 3,
           inserted_at: DateTime.truncate(DateTime.utc_now(), :second),
-          updated_at: DateTime.truncate(DateTime.utc_now(), :second)}
+          updated_at: DateTime.truncate(DateTime.utc_now(), :second)
+        }
       ])
 
       assert [%Card{body: "from db", votes: 3, lane: :went_well}] = Boards.list_cards(board)

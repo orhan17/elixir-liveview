@@ -244,7 +244,11 @@ defmodule Retro.BoardServer do
     card = %{card | updated_at: now_utc()}
 
     state =
-      %{state | cards: Map.put(state.cards, card.id, card), dirty: MapSet.put(state.dirty, card.id)}
+      %{
+        state
+        | cards: Map.put(state.cards, card.id, card),
+          dirty: MapSet.put(state.dirty, card.id)
+      }
       |> touch()
 
     broadcast(state, event, card)
@@ -282,7 +286,17 @@ defmodule Retro.BoardServer do
   end
 
   defp card_row(%Card{} = card) do
-    Map.take(card, [:id, :board_id, :lane, :body, :author_name, :position, :votes, :inserted_at, :updated_at])
+    Map.take(card, [
+      :id,
+      :board_id,
+      :lane,
+      :body,
+      :author_name,
+      :position,
+      :votes,
+      :inserted_at,
+      :updated_at
+    ])
   end
 
   # Postgres' sequence keeps generating ids even though the INSERT happens
